@@ -1,1 +1,35 @@
 # reverse_proxy
+addEventListener('fetch', (event) => {
+  event.respondWith(handleRequest(event.request));
+});
+
+async function handleRequest(request) {
+  try {
+    const url = new URL(request.url);
+    const inblogSubdomain = "invector.inblog.io";
+    const customHost = url.host;
+
+    if (url.pathname.startsWith("/blog") || url.pathname === "/robots.txt") {
+      url.hostname = inblogSubdomain;
+
+      if (url.pathname !== "/robots.txt") {
+        url.pathname = url.pathname.replace("/blog", "");
+      }
+
+      const proxyRequest = new Request(url, request);
+      proxyRequest.headers.set("Host", inblogSubdomain);
+      proxyRequest.headers.set("X-Forwarded-Host", customHost);
+      proxyRequest.headers.set("X-Forwarded-Proto", "https");
+
+      const ip = request.headers.get("CF-Connecting-IP");
+      if (ip) proxyRequest.headers.set("X-Forwarded-For", ip);
+
+      return fetch(proxyRequest);
+    }
+  } catch (error) {
+    // if no action found, play the regular request
+    console.error("Error handling request:", error);
+  }
+
+  return fetch(request);
+}
